@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/film/:slug/:id",
+      "destination": "/api/film?id=:id"
+    }
+  ]
+}
