@@ -1,54 +1,135 @@
-<!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin NontonKu</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script></head>
-<body class="admin-body"><header class="nav"><div class="brand">NONTON<span>KU</span> <small>ADMIN</small></div><a href="index.html" class="admin-link">Website</a></header>
-<main class="admin-wrap">
-<div id="loginBox" class="panel"><h1>Login Admin</h1><p class="muted">Masuk menggunakan akun admin Supabase.</p><input id="email" type="email" placeholder="Email admin"><input id="password" type="password" placeholder="Password"><button onclick="login()">Masuk</button><p id="loginMsg" class="msg"></p></div>
-<div id="dash" class="hidden">
-<div class="panel"><div class="row"><h1>Upload Film</h1><button class="secondary" onclick="logout()">Keluar</button></div>
-<input id="title" placeholder="Judul film"><div class="two"><input id="year" placeholder="Tahun"><input id="genre" placeholder="Genre"></div>
-<label class="file">Pilih poster (opsional)<input id="posterFile" type="file" accept="image/*" onchange="showPoster()"></label><p id="posterInfo" class="muted"></p>
-<label class="file">Pilih video<input id="videoFile" type="file" accept="video/*" onchange="showFile()"></label>
-<p id="fileInfo" class="muted"></p><button onclick="uploadFilm()">Upload & Publikasikan</button><p id="status" class="msg"></p></div>
-<div class="panel"><h2>Film Terupload</h2><div id="list"></div></div>
-</div></main>
-<script>
-let db,session;
-async function init(){
- if(!NONTONKU_CONFIG.SUPABASE_URL){document.getElementById('loginMsg').textContent='Config belum diisi. Lihat README.';return}
- db=supabase.createClient(NONTONKU_CONFIG.SUPABASE_URL,NONTONKU_CONFIG.SUPABASE_PUBLISHABLE_KEY);
- const r=await db.auth.getSession(); session=r.data.session; update();
- db.auth.onAuthStateChange((_e,s)=>{session=s;update()});
+
+async function uploadFilm() {
+  const f = document.getElementById('videoFile').files[0];
+  const filmTitle = document.getElementById('title').value.trim();
+  const filmYear = document.getElementById('year').value.trim();
+  const filmGenre = document.getElementById('genre').value.trim();
+  const pf = document.getElementById('posterFile').files[0];
+  const statusEl = document.getElementById('status');
+
+  if (!filmTitle || !f) {
+    statusEl.textContent = 'Judul dan video wajib diisi.';
+    return;
+  }
+
+  if (f.size > 190 * 1024 * 1024) {
+    statusEl.textContent = 'Video maksimal 190 MB untuk metode upload ini.';
+    return;
+  }
+
+  if (pf && pf.size > 5 * 1024 * 1024) {
+    statusEl.textContent = 'Poster maksimal 5 MB.';
+    return;
+  }
+
+  if (!session || !session.access_token) {
+    statusEl.textContent = 'Sesi login habis. Silakan login kembali.';
+    return;
+  }
+
+  statusEl.textContent = 'Menyiapkan upload Cloudflare...';
+
+  let posterUrl = '';
+  let posterPath = '';
+  let uploadUid = '';
+
+  try {
+    // Meminta tautan upload aman dari server.
+    const response = await fetch('/api/stream-upload', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + session.access_token
+      }
+    });
+
+    const ticket = await response.json();
+
+    if (!response.ok || !ticket.uploadURL || !ticket.uid) {
+      throw new Error(
+        ticket.error || 'Gagal membuat tautan upload Cloudflare.'
+      );
+    }
+
+    uploadUid = ticket.uid;
+
+    // Mengunggah video langsung ke Cloudflare Stream.
+    statusEl.textContent = 'Mengupload video ke Cloudflare...';
+
+    const form = new FormData();
+    form.append('file', f);
+
+    const uploaded = await fetch(ticket.uploadURL, {
+      method: 'POST',
+      body: form
+    });
+
+    if (!uploaded.ok) {
+      throw new Error(
+        'Upload video gagal. Periksa koneksi dan coba lagi.'
+      );
+    }
+
+    // Mengunggah poster ke Supabase jika dipilih.
+    if (pf) {
+      statusEl.textContent = 'Mengupload poster...';
+
+      const safe = pf.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      posterPath = crypto.randomUUID() + '-' + safe;
+
+      const posterUpload = await db.storage
+        .from('posters')
+        .upload(posterPath, pf, {
+          contentType: pf.type,
+          upsert: false
+        });
+
+      if (posterUpload.error) {
+        throw new Error(
+          'Upload poster gagal: ' + posterUpload.error.message
+        );
+      }
+
+      posterUrl = db.storage
+        .from('posters')
+        .getPublicUrl(posterPath).data.publicUrl;
+    }
+
+    // Menyimpan informasi film ke database.
+    statusEl.textContent = 'Menyimpan data film...';
+
+    const result = await db.from('films').insert({
+      title: filmTitle,
+      year: filmYear,
+      genre: filmGenre,
+      poster_url: posterUrl,
+      video_url: 'https://iframe.videodelivery.net/' + uploadUid,
+      storage_path: 'cloudflare:' + uploadUid
+    });
+
+    if (result.error) {
+      throw new Error(
+        'Data film gagal disimpan: ' + result.error.message
+      );
+    }
+
+    statusEl.textContent =
+      'Film berhasil disimpan! Tunggu pemrosesan video selesai.';
+
+    document.getElementById('title').value = '';
+    document.getElementById('year').value = '';
+    document.getElementById('genre').value = '';
+    document.getElementById('posterFile').value = '';
+    document.getElementById('posterInfo').textContent = '';
+    document.getElementById('videoFile').value = '';
+    document.getElementById('fileInfo').textContent = '';
+
+    await loadFilms();
+
+  } catch (error) {
+    if (posterPath) {
+      await db.storage.from('posters').remove([posterPath]);
+    }
+
+    statusEl.textContent = error.message || 'Upload gagal.';
+  }
 }
-function update(){document.getElementById('loginBox').classList.toggle('hidden',!!session);document.getElementById('dash').classList.toggle('hidden',!session);if(session)loadFilms()}
-async function login(){const {error}=await db.auth.signInWithPassword({email:email.value,password:password.value});loginMsg.textContent=error?error.message:''}
-async function logout(){await db.auth.signOut()}
-function showFile(){const f=videoFile.files[0];fileInfo.textContent=f?`${f.name} — ${(f.size/1024/1024).toFixed(1)} MB`:''}
-function showPoster(){const f=posterFile.files[0];posterInfo.textContent=f?`${f.name} — ${(f.size/1024/1024).toFixed(1)} MB`:''}
-async function uploadFilm(){
- const f=videoFile.files[0]; if(!title.value||!f){status.textContent='Judul dan video wajib diisi.';return}
- if(f.size>50*1024*1024){status.textContent='Paket Free Supabase maksimal 50 MB per file. Untuk film lebih besar perlu upgrade/penyimpanan lain.';return}
- status.textContent='Mengupload...';
- const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_'); const path=`${crypto.randomUUID()}-${safe}`;
- const up=await db.storage.from('videos').upload(path,f,{contentType:f.type,upsert:false});
- if(up.error){status.textContent='Upload video gagal: '+up.error.message;return}
- const pub=db.storage.from('videos').getPublicUrl(path).data.publicUrl;
- let posterUrl=''; let posterPath='';
- const pf=posterFile.files[0];
- if(pf){
-   if(pf.size>5*1024*1024){await db.storage.from('videos').remove([path]);status.textContent='Poster maksimal 5 MB.';return}
-   const psafe=pf.name.replace(/[^a-zA-Z0-9._-]/g,'_'); posterPath=`${crypto.randomUUID()}-${psafe}`;
-   const pu=await db.storage.from('posters').upload(posterPath,pf,{contentType:pf.type,upsert:false});
-   if(pu.error){await db.storage.from('videos').remove([path]);status.textContent='Upload poster gagal: '+pu.error.message;return}
-   posterUrl=db.storage.from('posters').getPublicUrl(posterPath).data.publicUrl;
- }
- const ins=await db.from('films').insert({title:title.value,year:year.value,genre:genre.value,poster_url:posterUrl,video_url:pub,storage_path:path});
- if(ins.error){await db.storage.from('videos').remove([path]);if(posterPath) await db.storage.from('posters').remove([posterPath]);status.textContent='Data film gagal disimpan: '+ins.error.message;return}
- status.textContent='Berhasil dipublikasikan.';
- title.value='';year.value='';genre.value='';posterFile.value='';posterInfo.textContent='';videoFile.value='';fileInfo.textContent='';loadFilms();
-}
-async function loadFilms(){const r=await db.from('films').select('*').order('created_at',{ascending:false});list.innerHTML=(r.data||[]).map(f=>`<div class="film-row"><div><b>${esc(f.title)}</b><small>${esc(f.year||'')} • ${esc(f.genre||'')}</small></div><button class="danger" onclick="del('${f.id}','${f.storage_path}')">Hapus</button></div>`).join('')||'<p class="muted">Belum ada film.</p>'}
-async function del(id,path){if(!confirm('Hapus film ini?'))return;await db.storage.from('videos').remove([path]);const r=await db.from('films').select('poster_url').eq('id',id).maybeSingle();if(r.data?.poster_url){try{const u=new URL(r.data.poster_url);const marker='/storage/v1/object/public/posters/';const i=u.pathname.indexOf(marker);if(i>=0){const pp=decodeURIComponent(u.pathname.slice(i+marker.length));if(pp) await db.storage.from('posters').remove([pp]);}}catch(e){}}await db.from('films').delete().eq('id',id);loadFilms()}
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-init();
-</script></body></html>
