@@ -8,58 +8,55 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
-
 <body class="admin-body">
-  <header class="nav">
-    <div class="brand">NONTON<span>KU</span> <small>ADMIN</small></div>
-    <a href="index.html" class="admin-link">Situs Web</a>
-  </header>
+<header class="nav">
+  <div class="brand">NONTON<span>KU</span> <small>ADMIN</small></div>
+  <a href="index.html" class="admin-link">Situs Web</a>
+</header>
 
-  <main class="admin-wrap">
-    <div id="loginBox" class="panel">
-      <h1>Login Admin</h1>
-      <p class="muted">Masuk menggunakan akun admin Supabase.</p>
-      <input id="email" type="email" placeholder="Email admin" autocomplete="username">
-      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
-      <button id="loginBtn" onclick="login()">Masuk</button>
-      <p id="loginMsg" class="msg"></p>
-    </div>
+<main class="admin-wrap">
+  <div id="loginBox" class="panel">
+    <h1>Login Admin</h1>
+    <p class="muted">Masuk menggunakan akun admin Supabase.</p>
+    <input id="email" type="email" placeholder="Email admin">
+    <input id="password" type="password" placeholder="Password">
+    <button id="loginBtn" onclick="login()">Masuk</button>
+    <p id="loginMsg" class="msg"></p>
+  </div>
 
-    <div id="dash" class="hidden">
-      <div class="panel">
-        <div class="row">
-          <h1>Unggah Film</h1>
-          <button class="secondary" onclick="logout()">Keluar</button>
-        </div>
-
-        <input id="title" placeholder="Judul film">
-        <div class="two">
-          <input id="year" placeholder="Tahun">
-          <input id="genre" placeholder="Genre">
-        </div>
-
-        <label class="file">
-          Pilih poster (opsional)
-          <input id="posterFile" type="file" accept="image/*" onchange="showPoster()">
-        </label>
-        <p id="posterInfo" class="muted"></p>
-
-        <label class="file">
-          Pilih video
-          <input id="videoFile" type="file" accept="video/*" onchange="showFile()">
-        </label>
-        <p id="fileInfo" class="muted"></p>
-
-        <button id="uploadBtn" onclick="uploadFilm()">Unggah &amp; Publikasikan</button>
-        <p id="status" class="msg"></p>
+  <div id="dash" class="hidden">
+    <div class="panel">
+      <div class="row">
+        <h1>Unggah Film</h1>
+        <button class="secondary" onclick="logout()">Keluar</button>
       </div>
 
-      <div class="panel">
-        <h2>Film Terupload</h2>
-        <div id="list"></div>
+      <input id="title" placeholder="Judul film">
+      <div class="two">
+        <input id="year" placeholder="Tahun">
+        <input id="genre" placeholder="Genre">
       </div>
+
+      <label class="file">Pilih poster (opsional)
+        <input id="posterFile" type="file" accept="image/*" onchange="showPoster()">
+      </label>
+      <p id="posterInfo" class="muted"></p>
+
+      <label class="file">Pilih video
+        <input id="videoFile" type="file" accept="video/*" onchange="showFile()">
+      </label>
+      <p id="fileInfo" class="muted"></p>
+
+      <button id="uploadBtn" onclick="uploadFilm()">Unggah &amp; Publikasikan</button>
+      <p id="status" class="msg"></p>
     </div>
-  </main>
+
+    <div class="panel">
+      <h2>Film Terupload</h2>
+      <div id="list"></div>
+    </div>
+  </div>
+</main>
 
 <script>
 "use strict";
@@ -68,14 +65,14 @@ let db;
 let session;
 let uploading = false;
 
-const el = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-function showMessage(id, message) {
-  el(id).textContent = message;
+function message(id, text) {
+  $(id).textContent = text;
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
@@ -90,10 +87,7 @@ async function init() {
     !NONTONKU_CONFIG.SUPABASE_URL ||
     !NONTONKU_CONFIG.SUPABASE_PUBLISHABLE_KEY
   ) {
-    showMessage(
-      "loginMsg",
-      "Konfigurasi Supabase belum lengkap. Periksa config.js."
-    );
+    message("loginMsg", "Konfigurasi Supabase belum lengkap. Periksa config.js.");
     return;
   }
 
@@ -102,59 +96,54 @@ async function init() {
     NONTONKU_CONFIG.SUPABASE_PUBLISHABLE_KEY
   );
 
-  const result = await db.auth.getSession();
+  try {
+    const result = await db.auth.getSession();
 
-  if (result.error) {
-    showMessage("loginMsg", "Gagal memeriksa sesi login. Silakan muat ulang.");
-    return;
-  }
+    if (result.error) throw result.error;
 
-  session = result.data.session;
-  updateUI();
-
-  db.auth.onAuthStateChange((_event, newSession) => {
-    session = newSession;
+    session = result.data.session;
     updateUI();
-  });
+
+    db.auth.onAuthStateChange((_event, newSession) => {
+      session = newSession;
+      updateUI();
+    });
+  } catch (error) {
+    message("loginMsg", "Gagal memeriksa sesi login. Muat ulang halaman.");
+  }
 }
 
 function updateUI() {
-  el("loginBox").classList.toggle("hidden", !!session);
-  el("dash").classList.toggle("hidden", !session);
+  $("loginBox").classList.toggle("hidden", !!session);
+  $("dash").classList.toggle("hidden", !session);
 
-  if (session && db) {
-    loadFilms();
-  }
+  if (session) loadFilms();
 }
 
 async function login() {
   if (!db) {
-    showMessage("loginMsg", "Supabase belum siap. Muat ulang halaman.");
+    message("loginMsg", "Supabase belum siap. Muat ulang halaman.");
     return;
   }
 
-  const email = el("email").value.trim();
-  const password = el("password").value;
+  const email = $("email").value.trim();
+  const password = $("password").value;
 
   if (!email || !password) {
-    showMessage("loginMsg", "Email dan password wajib diisi.");
+    message("loginMsg", "Email dan password wajib diisi.");
     return;
   }
 
-  el("loginBtn").disabled = true;
-  showMessage("loginMsg", "Memeriksa login...");
+  $("loginBtn").disabled = true;
+  message("loginMsg", "Memeriksa login...");
 
   try {
-    const { error } = await db.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    showMessage("loginMsg", error ? error.message : "");
+    const { error } = await db.auth.signInWithPassword({ email, password });
+    message("loginMsg", error ? error.message : "");
   } catch (error) {
-    showMessage("loginMsg", "Login gagal. Periksa koneksi dan konfigurasi.");
+    message("loginMsg", "Login gagal. Periksa koneksi internet.");
   } finally {
-    el("loginBtn").disabled = false;
+    $("loginBtn").disabled = false;
   }
 }
 
@@ -163,82 +152,75 @@ async function logout() {
 
   const { error } = await db.auth.signOut();
 
-  if (error) {
-    showMessage("status", "Gagal keluar: " + error.message);
-  }
+  if (error) message("status", "Gagal keluar: " + error.message);
 }
 
 function showFile() {
-  const file = el("videoFile").files[0];
+  const file = $("videoFile").files[0];
 
-  showMessage(
+  message(
     "fileInfo",
-    file
-      ? `${file.name} — ${(file.size / 1024 / 1024).toFixed(1)} MB`
-      : ""
+    file ? `${file.name} — ${(file.size / 1048576).toFixed(1)} MB` : ""
   );
 }
 
 function showPoster() {
-  const file = el("posterFile").files[0];
+  const file = $("posterFile").files[0];
 
-  showMessage(
+  message(
     "posterInfo",
-    file
-      ? `${file.name} — ${(file.size / 1024 / 1024).toFixed(1)} MB`
-      : ""
+    file ? `${file.name} — ${(file.size / 1048576).toFixed(1)} MB` : ""
   );
 }
 
 async function uploadFilm() {
   if (uploading) return;
 
-  if (!session || !session.access_token) {
-    showMessage("status", "Sesi login berakhir. Silakan login kembali.");
+  if (!session?.access_token) {
+    message("status", "Sesi login berakhir. Silakan login kembali.");
     return;
   }
 
-  const title = el("title").value.trim();
-  const year = el("year").value.trim();
-  const genre = el("genre").value.trim();
-  const videoFile = el("videoFile").files[0];
-  const posterFile = el("posterFile").files[0];
+  const title = $("title").value.trim();
+  const year = $("year").value.trim();
+  const genre = $("genre").value.trim();
+  const videoFile = $("videoFile").files[0];
+  const posterFile = $("posterFile").files[0];
 
   if (!title || !videoFile) {
-    showMessage("status", "Judul dan video wajib diisi.");
+    message("status", "Judul dan video wajib diisi.");
     return;
   }
 
   if (!videoFile.type.startsWith("video/")) {
-    showMessage("status", "Pilih file video yang valid.");
+    message("status", "Pilih file video yang valid.");
     return;
   }
 
   if (posterFile && !posterFile.type.startsWith("image/")) {
-    showMessage("status", "Pilih file gambar untuk poster.");
+    message("status", "File poster harus berupa gambar.");
     return;
   }
 
   if (posterFile && posterFile.size > 5 * 1024 * 1024) {
-    showMessage("status", "Poster maksimal 5 MB.");
+    message("status", "Poster maksimal 5 MB.");
     return;
   }
 
   uploading = true;
-  el("uploadBtn").disabled = true;
+  $("uploadBtn").disabled = true;
 
   let posterPath = "";
   let posterUrl = "";
+  let cloudflareUid = "";
 
   try {
-    showMessage("status", "Meminta tautan unggah Cloudflare Stream...");
-
-    const token = session.access_token;
+    message("status", "Meminta tautan unggah Cloudflare...");
 
     const linkResponse = await fetch("/api/stream-upload", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${session.access_token}`
       }
     });
 
@@ -246,14 +228,13 @@ async function uploadFilm() {
 
     if (!linkResponse.ok || !linkData.uploadURL || !linkData.uid) {
       throw new Error(
-        linkData.error || "Gagal mendapatkan tautan unggah Cloudflare."
+        linkData.error || "Cloudflare gagal membuat tautan unggah."
       );
     }
 
-    showMessage(
-      "status",
-      "Mengunggah video ke Cloudflare Stream. Jangan tutup halaman..."
-    );
+    cloudflareUid = linkData.uid;
+
+    message("status", "Mengunggah video ke Cloudflare Stream...");
 
     const formData = new FormData();
     formData.append("file", videoFile);
@@ -265,21 +246,16 @@ async function uploadFilm() {
 
     if (!uploadResponse.ok) {
       throw new Error(
-        "Unggahan video ke Cloudflare gagal. Coba lagi atau periksa konfigurasi Stream."
+        "Upload Cloudflare gagal. Periksa konfigurasi Stream atau coba lagi."
       );
     }
 
-    const uid = linkData.uid;
-
-    /*
-     * URL HLS untuk pemutaran video.
-     * Kompatibilitasnya tetap perlu diuji dengan pemutar di index.html.
-     */
+    // URL iframe untuk pemutar Cloudflare pada index.html.
     const videoUrl =
-      `https://videodelivery.net/${encodeURIComponent(uid)}/manifest/video.m3u8`;
+      `https://iframe.videodelivery.net/${encodeURIComponent(cloudflareUid)}`;
 
     if (posterFile) {
-      showMessage("status", "Video terunggah. Mengunggah poster...");
+      message("status", "Video terunggah. Mengunggah poster...");
 
       const extension = posterFile.name.includes(".")
         ? posterFile.name.split(".").pop().replace(/[^a-zA-Z0-9]/g, "")
@@ -296,8 +272,9 @@ async function uploadFilm() {
 
       if (posterResult.error) {
         throw new Error(
-          "Video sudah diunggah, tetapi poster gagal diunggah: " +
-          posterResult.error.message
+          "Video sudah diunggah, tetapi poster gagal: " +
+          posterResult.error.message +
+          ". ID Cloudflare: " + cloudflareUid
         );
       }
 
@@ -306,55 +283,52 @@ async function uploadFilm() {
         .getPublicUrl(posterPath).data.publicUrl;
     }
 
-    showMessage("status", "Menyimpan informasi film...");
+    message("status", "Menyimpan data film...");
 
-    const insertResult = await db.from("films").insert({
+    const result = await db.from("films").insert({
       title,
       year: year || null,
       genre: genre || null,
       poster_url: posterUrl,
       video_url: videoUrl,
-      storage_path: uid
+      storage_path: cloudflareUid
     });
 
-    if (insertResult.error) {
+    if (result.error) {
       throw new Error(
-        "Video sudah masuk Cloudflare, tetapi data film gagal disimpan: " +
-        insertResult.error.message +
-        ". ID Cloudflare: " + uid
+        "Video sudah diunggah ke Cloudflare, tetapi data film gagal disimpan: " +
+        result.error.message +
+        ". ID Cloudflare: " + cloudflareUid
       );
     }
 
-    showMessage(
+    message(
       "status",
-      "Film berhasil dipublikasikan! Video sedang diproses Cloudflare."
+      "Film berhasil dipublikasikan. Cloudflare mungkin masih memproses video."
     );
 
-    el("title").value = "";
-    el("year").value = "";
-    el("genre").value = "";
-    el("posterFile").value = "";
-    el("videoFile").value = "";
+    $("title").value = "";
+    $("year").value = "";
+    $("genre").value = "";
+    $("posterFile").value = "";
+    $("videoFile").value = "";
 
     showPoster();
     showFile();
 
     await loadFilms();
   } catch (error) {
-    showMessage(
-      "status",
-      error.message || "Terjadi kesalahan saat mengunggah film."
-    );
+    message("status", error.message || "Terjadi kesalahan saat mengunggah film.");
   } finally {
     uploading = false;
-    el("uploadBtn").disabled = false;
+    $("uploadBtn").disabled = false;
   }
 }
 
 async function loadFilms() {
   if (!db || !session) return;
 
-  const list = el("list");
+  const list = $("list");
   list.textContent = "Memuat daftar film...";
 
   const result = await db
@@ -374,48 +348,35 @@ async function loadFilms() {
     return;
   }
 
-  list.innerHTML = films.map((film) => `
+  list.innerHTML = films.map(film => `
     <div class="film-row">
       <div>
-        <b>${escapeHTML(film.title)}</b>
-        <small>
-          ${escapeHTML(film.year || "")}
-          •
-          ${escapeHTML(film.genre || "")}
-        </small>
+        <b>${esc(film.title)}</b>
+        <small>${esc(film.year || "")} • ${esc(film.genre || "")}</small>
       </div>
-      <button
-        class="danger"
-        onclick="delFilm('${escapeHTML(film.id)}')"
-      >Hapus</button>
+      <button class="danger" onclick="delFilm('${esc(film.id)}')">Hapus</button>
     </div>
   `).join("");
 }
 
 async function delFilm(id) {
   if (!session) {
-    showMessage("status", "Silakan login kembali.");
+    message("status", "Silakan login kembali.");
     return;
   }
 
-  const confirmed = confirm(
-    "Hapus data film ini dari daftar NontonKu? Video di Cloudflare Stream tidak ikut terhapus."
-  );
-
-  if (!confirmed) return;
+  if (!confirm(
+    "Hapus data film dari NontonKu? Video di Cloudflare Stream tidak ikut terhapus."
+  )) return;
 
   const result = await db.from("films").delete().eq("id", id);
 
   if (result.error) {
-    showMessage("status", "Gagal menghapus film: " + result.error.message);
+    message("status", "Gagal menghapus film: " + result.error.message);
     return;
   }
 
-  showMessage(
-    "status",
-    "Data film dihapus. File video di Cloudflare masih tersimpan."
-  );
-
+  message("status", "Data film dihapus. Video Cloudflare masih tersimpan.");
   await loadFilms();
 }
 
