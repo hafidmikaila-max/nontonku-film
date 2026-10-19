@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
   try {
     const userResponse = await fetch(
-      `${process.env.SUPABASE_URL || "https://sculxtkbmeqqdpuxxrfx.supabase.co"}/auth/v1/user`
+      `${process.env.SUPABASE_URL || "https://sculxtkbmeqqdpuxxrfx.supabase.co"}/auth/v1/user`,
       {
         headers: {
           apikey: process.env.SUPABASE_ANON_KEY,
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const user = await userResponse.json();
 
     const adminResponse = await fetch(
-      `${process.env.SUPABASE_URL || "https://sculxtkbmeqqdpuxxrfx.supabase.co"}/rest/v1/admin_users?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`
+      `${process.env.SUPABASE_URL || "https://sculxtkbmeqqdpuxxrfx.supabase.co"}/rest/v1/admin_users?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`,
       {
         headers: {
           apikey: process.env.SUPABASE_ANON_KEY,
