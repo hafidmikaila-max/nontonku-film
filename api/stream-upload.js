@@ -9,9 +9,23 @@ export default async function handler(req, res) {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    "https://sculxtkbmeqqdpuxxrfx.supabase.co";
+
+  const supabaseKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY;
+
   if (!accountId || !apiToken) {
     return res.status(500).json({
       error: "Konfigurasi Cloudflare belum lengkap"
+    });
+  }
+
+  if (!supabaseKey) {
+    return res.status(500).json({
+      error: "Konfigurasi kunci Supabase belum lengkap"
     });
   }
 
@@ -25,10 +39,10 @@ export default async function handler(req, res) {
 
   try {
     const userResponse = await fetch(
-      `${process.env.SUPABASE_URL || "https://sculxtkbmeqqdpuxxrfx.supabase.co"}/auth/v1/user`,
+      `${supabaseUrl}/auth/v1/user`,
       {
         headers: {
-          apikey: process.env.SUPABASE_ANON_KEY,
+          apikey: supabaseKey,
           Authorization: auth
         }
       }
@@ -43,10 +57,10 @@ export default async function handler(req, res) {
     const user = await userResponse.json();
 
     const adminResponse = await fetch(
-      `${process.env.SUPABASE_URL || "https://sculxtkbmeqqdpuxxrfx.supabase.co"}/rest/v1/admin_users?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`,
+      `${supabaseUrl}/rest/v1/admin_users?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`,
       {
         headers: {
-          apikey: process.env.SUPABASE_ANON_KEY,
+          apikey: supabaseKey,
           Authorization: auth
         }
       }
@@ -99,4 +113,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
