@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="id">
 <head>
@@ -13,11 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
   <script src="https://pl31787884.profitableratecpmnetwork.com/55/d9/52/55d95203e281a108df48029df99e85e6.js"></script>
 </head>
 
-<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-HMFN2JN7DQ"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -154,10 +151,8 @@
       </div>
     </div>
 
-    <!-- Pemutar video biasa -->
     <video id="video" controls playsinline></video>
 
-    <!-- Pemutar Cloudflare Stream -->
     <iframe
       id="cloudflarePlayer"
       style="display:none;width:100%;aspect-ratio:16/9;border:0;background:#000"
@@ -172,39 +167,58 @@
 </div>
 
 <script>
+'use strict';
+
 let films = [];
 let activeGenre = 'all';
 
 const fallbackPoster = 'https://placehold.co/600x900/0b1628/9fbce9?text=NontonKu';
 
-async function load() {
-  if (!window.NONTONKU_CONFIG?.SUPABASE_URL) {
-    showLoadError('Website belum dikonfigurasi. Ikuti petunjuk di README.');
-    return;
-  }
+/*
+  Konfigurasi website utama.
+  Film dibaca dari proyek Supabase tempat data film kamu tersimpan.
+*/
+const SUPABASE_URL = 'https://vsuwjokcqiruhbmmtabb.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_9rZvzp0sYjKsAFDsNCb75g_7DXYvuQ5';
 
+async function load() {
   try {
-    const db = supabase.createClient(
-      NONTONKU_CONFIG.SUPABASE_URL,
-      NONTONKU_CONFIG.SUPABASE_PUBLISHABLE_KEY
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
     );
 
     const { data, error } = await db
       .from('films')
       .select('*')
+      .eq('published', true)
       .order('created_at', { ascending: false });
 
     if (error) {
-      showLoadError('Film belum bisa dimuat. Periksa konfigurasi Supabase.');
+      console.error('Supabase load error:', error);
+      showLoadError('Film belum bisa dimuat. Periksa pengaturan akses Supabase.');
       return;
     }
 
-    films = data || [];
+    /*
+      Sesuaikan nama kolom database:
+      release_year -> year
+      poster_path  -> poster_url
+      video_path   -> video_url
+    */
+    films = (data || []).map(f => ({
+      ...f,
+      year: f.release_year,
+      poster_url: f.poster_path,
+      video_url: f.video_path
+    }));
+
     render();
     renderLatest();
     renderGenres();
     openLinkedFilm();
-  } catch (e) {
+  } catch (error) {
+    console.error('Website load error:', error);
     showLoadError('Terjadi masalah saat memuat film. Coba muat ulang halaman.');
   }
 }
@@ -229,10 +243,13 @@ function setGenre(genre) {
   try {
     genre = decodeURIComponent(genre);
   } catch (e) {}
-  activeGenre = genre;
+
+  activeGenre = genre.toLowerCase();
+
   document.querySelectorAll('.genre-chip').forEach(b => {
-    b.classList.toggle('active', b.dataset.genre === genre);
+    b.classList.toggle('active', b.dataset.genre === activeGenre);
   });
+
   render();
 }
 
@@ -248,13 +265,15 @@ function render() {
   const input = document.getElementById('search');
   const q = (input.value || '').trim().toLowerCase();
 
-  const list = films.filter(f =>
-    (f.title || '').toLowerCase().includes(q) &&
-    (activeGenre === 'all' || (f.genre || '').toLowerCase() === activeGenre)
-    ||
-    (f.genre || '').toLowerCase().includes(q) &&
-    (activeGenre === 'all' || (f.genre || '').toLowerCase() === activeGenre)
-  );
+  const list = films.filter(f => {
+    const titleMatches = (f.title || '').toLowerCase().includes(q);
+    const genreMatches = (f.genre || '').toLowerCase().includes(q);
+    const selectedGenre =
+      activeGenre === 'all' ||
+      (f.genre || '').trim().toLowerCase() === activeGenre;
+
+    return (titleMatches || genreMatches) && selectedGenre;
+  });
 
   document.getElementById('grid').innerHTML = list.length
     ? list.map(f => filmCard(f)).join('')
@@ -266,6 +285,7 @@ function render() {
 
 function renderLatest() {
   const latest = films.slice(0, 5);
+
   document.getElementById('latestGrid').innerHTML = latest.length
     ? latest.map((f, i) => filmCard(f, i, true)).join('')
     : '<div class="empty-state"><span>✧</span><p>Film terbaru akan tampil di sini setelah ditambahkan melalui halaman admin.</p></div>';
@@ -307,7 +327,7 @@ function openDetail(encodedId, updateUrl = true) {
   }
 
   document.getElementById('detailContent').innerHTML =
-    `<div class="detail-layout"><div class="detail-poster"><img src="${poster(f)}" alt="Poster ${esc(f.title)}" onerror="this.onerror=null;this.src='${fallbackPoster}'"></div><div class="detail-copy"><p class="section-kicker">DETAIL FILM</p><h2 id="detailTitle">${esc(f.title || 'Tanpa judul')}</h2><div class="detail-meta"><span>${esc(f.year || 'Tahun tidak diketahui')}</span><span>${esc(f.genre || 'Genre belum diisi')}</span></div><p class="detail-description">Siapkan diri untuk menikmati <strong>${esc(f.title || 'film ini')}</strong>. Buka pemutar untuk mulai menonton.</p><div class="detail-actions"><button class="primary-btn" onclick="playFilm('${encodeURIComponent(f.id)}')"><span>▶</span> Putar Film</button><button class="secondary-btn" onclick="shareFilm('${encodeURIComponent(f.id)}')">↗ Bagikan Link</button></div></div></div>`;
+    `<div class="detail-layout"><div class="detail-poster"><img src="${poster(f)}" alt="Poster ${esc(f.title)}" onerror="this.onerror=null;this.src='${fallbackPoster}'"></div><div class="detail-copy"><p class="section-kicker">DETAIL FILM</p><h2 id="detailTitle">${esc(f.title || 'Tanpa judul')}</h2><div class="detail-meta"><span>${esc(f.year || 'Tahun tidak diketahui')}</span><span>${esc(f.genre || 'Genre belum diisi')}</span></div><p class="detail-description">${esc(f.description || 'Siapkan diri untuk menikmati film ini. Buka pemutar untuk mulai menonton.')}</p><div class="detail-actions"><button class="primary-btn" onclick="playFilm('${encodeURIComponent(f.id)}')"><span>▶</span> Putar Film</button><button class="secondary-btn" onclick="shareFilm('${encodeURIComponent(f.id)}')">↗ Bagikan Link</button></div></div></div>`;
 
   document.getElementById('detail').classList.add('show');
   document.body.classList.add('modal-open');
@@ -362,7 +382,10 @@ function openLinkedFilm() {
 
 function playFilm(encodedId) {
   const f = films.find(item => String(item.id) === decodeURIComponent(encodedId));
-  if (!f || !f.video_url) return;
+  if (!f || !f.video_url) {
+    alert('Video film belum tersedia.');
+    return;
+  }
 
   closeDetail();
   play(f.video_url, f.title || 'NontonKu');
@@ -409,7 +432,6 @@ function play(url, title) {
   }
 }
 
-/* Menghentikan pemutaran saat jendela ditutup */
 function closePlayer() {
   const video = document.getElementById('video');
   const iframe = document.getElementById('cloudflarePlayer');
