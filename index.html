@@ -66,10 +66,6 @@
         <div class="screen-caption">YOUR NEXT<br><strong>FAVORITE FILM</strong></div>
       </div>
       <div class="floating-chip chip-top">✦ &nbsp; CINEMATIC</div>
-      <div class="floating-chip chip-bottom">
-        <span class="chip-play">▶</span>
-        <span><b>Waktunya menonton</b><small>Film pilihan ada di sini</small></span>
-      </div>
     </div>
   </section>
 
@@ -161,7 +157,6 @@
       title="Pemutar film Cloudflare">
     </iframe>
 
-    <!-- Tombol DOWNLOAD dan BAGIKAN -->
     <div class="watch-action-buttons">
       <a
         class="watch-action-button download-button"
@@ -247,10 +242,6 @@ let activeGenre = 'all';
 
 const fallbackPoster = 'https://placehold.co/600x900/0b1628/9fbce9?text=NontonKu';
 
-/*
-  Konfigurasi website utama.
-  Film dibaca dari proyek Supabase tempat data film kamu tersimpan.
-*/
 const SUPABASE_URL = 'https://vsuwjokcqiruhbmmtabb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_9rZvzp0sYjKsAFDsNCb75g_7DXYvuQ5';
 
@@ -273,12 +264,6 @@ async function load() {
       return;
     }
 
-    /*
-      Sesuaikan nama kolom database:
-      release_year -> year
-      poster_path  -> poster_url
-      video_path   -> video_url
-    */
     films = (data || []).map(f => ({
       ...f,
       year: f.release_year,
@@ -477,7 +462,6 @@ function loadAdsterraPlayerAd() {
   document.getElementById('adsterra-player-slot').appendChild(script);
 }
 
-/* Pemutar mendukung Cloudflare Stream dan video biasa */
 function play(url, title) {
   const video = document.getElementById('video');
   const iframe = document.getElementById('cloudflarePlayer');
