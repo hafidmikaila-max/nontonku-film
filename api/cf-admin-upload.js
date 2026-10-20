@@ -12,21 +12,19 @@ module.exports = async function handler(req, res) {
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
   if (!secret || !accountId || !apiToken) {
-    return res.status(500).json({
-      error: "Pengaturan admin atau Cloudflare belum lengkap di Vercel"
-    });
+    return res.status(500).json({ error: "Konfigurasi server belum lengkap" });
   }
 
   const cookie = req.headers.cookie || "";
   const match = cookie.match(/(?:^|;\s*)nontonku_admin=([^;]+)/);
 
   if (!match) {
-    return res.status(401).json({ error: "Silakan login admin terlebih dahulu" });
+    return res.status(401).json({ error: "Silakan login admin" });
   }
 
   const parts = match[1].split(".");
   if (parts.length !== 2) {
-    return res.status(401).json({ error: "Sesi admin tidak valid" });
+    return res.status(401).json({ error: "Sesi tidak valid" });
   }
 
   const [payload, signature] = parts;
@@ -39,18 +37,18 @@ module.exports = async function handler(req, res) {
   const b = Buffer.from(expected);
 
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    return res.status(401).json({ error: "Sesi admin tidak valid" });
+    return res.status(401).json({ error: "Sesi tidak valid" });
   }
 
   let session;
   try {
     session = JSON.parse(Buffer.from(payload, "base64url").toString());
   } catch {
-    return res.status(401).json({ error: "Sesi admin tidak valid" });
+    return res.status(401).json({ error: "Sesi tidak valid" });
   }
 
   if (session.admin !== true || session.exp <= Math.floor(Date.now() / 1000)) {
-    return res.status(401).json({ error: "Sesi admin sudah kedaluwarsa" });
+    return res.status(401).json({ error: "Sesi kedaluwarsa" });
   }
 
   const origin = req.headers.origin;
@@ -67,52 +65,66 @@ module.exports = async function handler(req, res) {
   }
 
   const body = req.body || {};
-  const maxDurationSeconds = 3600;
-  const duration = Number(body.maxDurationSeconds || 0);
+  const fileSize = Number(body.fileSize);
+  const fileName =
+    typeof body.fileName === "string" ? body.fileName.trim() : "";
+  const duration = Number(body.maxDurationSeconds);
 
-  if (
-    !Number.isInteger(duration) ||
-    duration < 1 ||
-    duration > maxDurationSeconds
-  ) {
+  if (!Number.isSafeInteger(fileSize) || fileSize < 1) {
+    return res.status(400).json({ error: "Ukuran file tidak valid" });
+  }
+
+  if (!fileName || fileName.length > 255) {
+    return res.status(400).json({ error: "Nama file tidak valid" });
+  }
+
+  if (!Number.isInteger(duration) || duration < 1 || duration > 36000) {
     return res.status(400).json({
-      error: "Durasi harus berupa angka detik antara 1 dan 3600"
+      error: "Durasi maksimal harus 1–36000 detik"
     });
   }
 
+  const metadata = [
+    `name ${Buffer.from(fileName).toString("base64")}`,
+    `maxdurationseconds ${Buffer.from(String(duration)).toString("base64")}`
+  ].join(",");
+
   try {
     const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`,
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream?direct_user=true`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          maxDurationSeconds: duration,
-          expiry: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          requireSignedURLs: false
-        })
+          "Tus-Resumable": "1.0.0",
+          "Upload-Length": String(fileSize),
+          "Upload-Metadata": metadata
+        }
       }
     );
 
-    const data = await response.json();
-
-    if (!response.ok || !data.success || !data.result?.uploadURL) {
+    if (!response.ok) {
+      const details = await response.text();
+      console.error("Cloudflare TUS error:", response.status, details);
       return res.status(502).json({
-        error: "Cloudflare gagal membuat URL upload",
-        details: data.errors?.map(e => e.message) || []
+        error: "Cloudflare gagal membuat URL upload. Periksa izin Stream Write."
       });
     }
 
-    return res.status(200).json({
-      uploadURL: data.result.uploadURL,
-      uid: data.result.uid
-    });
-  } catch {
+    const uploadURL = response.headers.get("Location");
+    const uid = response.headers.get("stream-media-id");
+
+    if (!uploadURL) {
+      return res.status(502).json({
+        error: "Cloudflare tidak mengembalikan URL upload"
+      });
+    }
+
+    return res.status(200).json({ uploadURL, uid: uid || null });
+  } catch (error) {
+    console.error("Upload setup error:", error.message);
     return res.status(502).json({
-      error: "Tidak dapat terhubung ke Cloudflare"
+      error: "Gagal menghubungi Cloudflare"
     });
   }
 };
