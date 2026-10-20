@@ -1,64 +1,254 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin Upload NontonKu</title>
+  <title>Admin NontonKu — Cloudflare Stream</title>
+  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4/dist/tus.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      padding: 20px;
-      background: #10131a;
-      color: #fff;
+      margin: 0; padding: 20px; background: #10131a; color: #fff;
       font-family: Arial, sans-serif;
     }
-    .container {
-      max-width: 600px;
-      margin: 30px auto;
-      padding: 24px;
-      background: #1b202b;
-      border-radius: 14px;
+    main {
+      max-width: 650px; margin: 25px auto; padding: 22px;
+      background: #1b202b; border-radius: 14px;
     }
-    h1 { margin-top: 0; }
-    p { color: #c5cad5; line-height: 1.5; }
+    h1 { font-size: 25px; }
+    p { color: #c5cad5; line-height: 1.5; overflow-wrap: anywhere; }
     label { display: block; margin: 18px 0 8px; }
     input, button {
-      width: 100%;
-      padding: 13px;
-      border-radius: 8px;
-      font-size: 16px;
+      width: 100%; padding: 13px; border-radius: 8px; font-size: 16px;
     }
     input {
-      border: 1px solid #414959;
-      background: #10131a;
-      color: white;
+      background: #10131a; color: white; border: 1px solid #414959;
     }
     button {
-      margin-top: 18px;
-      border: 0;
-      background: #e11d48;
-      color: white;
-      font-weight: bold;
+      margin-top: 15px; border: 0; background: #e11d48;
+      color: white; font-weight: bold; cursor: pointer;
     }
-    button:disabled { opacity: .5; }
-    #status { overflow-wrap: anywhere; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .secondary { background: #374151; }
+    .hidden { display: none; }
+    progress { width: 100%; height: 22px; margin-top: 12px; }
+    a { color: #93c5fd; overflow-wrap: anywhere; }
+    .note { font-size: 13px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Admin NontonKu</h1>
-    <p>Upload video langsung ke Cloudflare Stream.</p>
+<main>
+  <h1>Admin NontonKu</h1>
+  <p>Upload video langsung ke Cloudflare Stream.</p>
 
+  <section id="loginBox">
     <label for="password">Password admin</label>
     <input id="password" type="password"
-      placeholder="Masukkan password admin">
+      autocomplete="current-password" placeholder="Password admin">
+    <button id="loginBtn">Login Admin</button>
+  </section>
 
-    <label for="video">Pilih file video</label>
+  <section id="uploadBox" class="hidden">
+    <p>Login berhasil. Pilih video yang ingin diunggah.</p>
+
+    <label for="video">File video</label>
     <input id="video" type="file" accept="video/*">
 
-    <button id="upload">Upload Video</button>
-    <p id="status">Halaman admin siap disiapkan.</p>
-  </div>
+    <label for="duration">Batas durasi video (detik)</label>
+    <input id="duration" type="number" min="1" max="36000" value="3600">
+
+    <button id="uploadBtn">Mulai Upload</button>
+    <button id="logoutBtn" class="secondary">Logout</button>
+
+    <progress id="progress" value="0" max="100" class="hidden"></progress>
+    <p id="status" role="status" aria-live="polite"></p>
+    <div id="result" class="hidden"></div>
+
+    <p class="note">
+      Jangan tutup halaman saat upload berlangsung. Video yang berhasil
+      diunggah belum otomatis muncul di katalog film NontonKu.
+    </p>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let busy = false;
+
+function showStatus(message) {
+  $("status").textContent = message;
+}
+
+async function requestJSON(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Permintaan gagal (" + response.status + ")");
+  }
+  return data;
+}
+
+function showLoggedIn(loggedIn) {
+  $("loginBox").classList.toggle("hidden", loggedIn);
+  $("uploadBox").classList.toggle("hidden", !loggedIn);
+}
+
+async function checkSession() {
+  try {
+    await requestJSON("/api/admin-session");
+    showLoggedIn(true);
+  } catch {
+    showLoggedIn(false);
+  }
+}
+
+$("loginBtn").addEventListener("click", async () => {
+  const password = $("password").value;
+  if (!password) {
+    showStatus("Masukkan password admin.");
+    return;
+  }
+
+  $("loginBtn").disabled = true;
+  try {
+    await requestJSON("/api/admin-login", {
+      method: "POST",
+      body: JSON.stringify({ password })
+    });
+    $("password").value = "";
+    showLoggedIn(true);
+    showStatus("Login berhasil.");
+  } catch (error) {
+    showStatus(error.message);
+  } finally {
+    $("loginBtn").disabled = false;
+  }
+});
+
+$("password").addEventListener("keydown", event => {
+  if (event.key === "Enter") $("loginBtn").click();
+});
+
+$("logoutBtn").addEventListener("click", async () => {
+  try {
+    await requestJSON("/api/admin-logout", { method: "POST", body: "{}" });
+  } catch (error) {
+    showStatus(error.message);
+  }
+  showLoggedIn(false);
+  showStatus("Sesi admin berakhir.");
+});
+
+$("uploadBtn").addEventListener("click", async () => {
+  if (busy) return;
+
+  const file = $("video").files[0];
+  const duration = Number($("duration").value);
+
+  if (!file) {
+    showStatus("Pilih file video terlebih dahulu.");
+    return;
+  }
+
+  if (!file.type.startsWith("video/")) {
+    showStatus("File harus berupa video.");
+    return;
+  }
+
+  if (!Number.isInteger(duration) || duration < 1 || duration > 36000) {
+    showStatus("Durasi harus antara 1 sampai 36000 detik.");
+    return;
+  }
+
+  if (!window.tus || !window.tus.Upload) {
+    showStatus("Pustaka upload belum termuat. Muat ulang halaman.");
+    return;
+  }
+
+  busy = true;
+  $("uploadBtn").disabled = true;
+  $("progress").classList.remove("hidden");
+  $("progress").value = 0;
+  $("result").classList.add("hidden");
+  showStatus("Meminta izin upload ke server...");
+
+  try {
+    const ticket = await requestJSON("/api/cf-admin-upload", {
+      method: "POST",
+      body: JSON.stringify({
+        fileSize: file.size,
+        fileName: file.name,
+        maxDurationSeconds: duration
+      })
+    });
+
+    if (!ticket.uploadURL) throw new Error("URL upload tidak diterima.");
+
+    showStatus("Mengunggah video...");
+    const upload = new tus.Upload(file, {
+      uploadUrl: ticket.uploadURL,
+      chunkSize: 50 * 1024 * 1024,
+      retryDelays: [0, 1000, 3000, 5000, 10000],
+      onError(error) {
+        showStatus("Upload gagal: " + error.message);
+        busy = false;
+        $("uploadBtn").disabled = false;
+      },
+      onProgress(bytesUploaded, bytesTotal) {
+        const percent = Math.floor(bytesUploaded / bytesTotal * 100);
+        $("progress").value = percent;
+        showStatus("Progres upload: " + percent + "%");
+      },
+      onSuccess() {
+        $("progress").value = 100;
+        showStatus("Upload selesai. Cloudflare sedang memproses video.");
+
+        const uid = ticket.uid;
+        const result = $("result");
+        result.classList.remove("hidden");
+        result.replaceChildren();
+
+        const heading = document.createElement("p");
+        heading.textContent = "UID video: " + (uid || "Tidak tersedia");
+        result.appendChild(heading);
+
+        if (uid) {
+          const url = "https://customer-" +
+            "YOUR_CUSTOMER_CODE.cloudflarestream.com/" + uid + "/iframe";
+          const note = document.createElement("p");
+          note.textContent =
+            "UID tersimpan untuk dicatat. URL pemutar memerlukan kode pelanggan Cloudflare yang benar.";
+          result.appendChild(note);
+        }
+
+        const note = document.createElement("p");
+        note.textContent =
+          "Video belum otomatis masuk katalog NontonKu. Simpan UID video ini.";
+        result.appendChild(note);
+
+        busy = false;
+        $("uploadBtn").disabled = false;
+      }
+    });
+
+    upload.start();
+  } catch (error) {
+    showStatus(error.message);
+    busy = false;
+    $("uploadBtn").disabled = false;
+  }
+});
+
+checkSession();
+</script>
 </body>
 </html>
