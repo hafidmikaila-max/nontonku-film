@@ -1,4 +1,4 @@
 window.NONTONKU_CONFIG = {
-  SUPABASE_URL: "https://sculxtkbmeqqdpuxxrfx.supabase.co",
-  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_QjLPncMwT-SWapS65jhhPw_kj6Xmg3U"
+  SUPABASE_URL: "https://vsuwjokcqiruhbmmtabb.supabase.co",
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_9rZvzp0sYjKsAFDsNCb75g_7DXYvuQ5"
 };
