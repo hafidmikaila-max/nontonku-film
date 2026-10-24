@@ -10,6 +10,49 @@ footer{border-top:1px solid var(--line);padding:34px 7.2% 28px;display:flex;alig
 @media(max-width:380px){.hero h1{font-size:35px}.hero-actions{align-items:flex-start;flex-direction:column;gap:15px}.hero-art{min-height:215px}.stats-strip{padding-left:2%;padding-right:2%}.stats-strip>div{flex-direction:column;align-items:flex-start;gap:5px}.stats-strip small{font-size:7px}.latest-grid{gap:14px 9px}.detail-layout{grid-template-columns:88px 1fr;gap:12px}.detail-copy h2{font-size:20px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
 
+/* Menghilangkan ilustrasi NK+ di halaman utama */
+.hero-art {
+  display: none !important;
+}
+
+/* Menyediakan ruang iklan spanduk */
+.hero {
+  grid-template-columns: 1fr !important;
+}
+
+.hero-banner-slot {
+  width: 100%;
+  min-height: 250px;
+  margin-top: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-sizing: border-box;
+  border: 1px dashed rgba(119, 181, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(5, 11, 22, 0.35);
+  text-align: center;
+}
+
+.hero-banner-note {
+  color: #8297b4;
+  font-size: 12px;
+}
+
+/* Tampilan HP */
+@media (max-width: 720px) {
+  .hero {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-banner-slot {
+    min-height: 250px;
+  }
+}
+
+
 /* Ad placements — visual placeholders, ready for the real ad snippet */
 .ad-placement{width:min(1100px,85.6%);margin:26px auto 0;min-height:88px;display:flex;align-items:center;justify-content:center;gap:18px;padding:14px 20px;border:1px dashed rgba(119,181,255,.3);border-radius:13px;background:linear-gradient(100deg,rgba(12,29,52,.9),rgba(7,17,32,.85));color:#dbeaff}
 .ad-placement-label{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:22px;padding:0 8px;border-radius:5px;background:rgba(99,145,200,.13);border:1px solid rgba(140,177,220,.2);color:#90a8c8;font-size:9px;font-weight:800;letter-spacing:1.4px}
