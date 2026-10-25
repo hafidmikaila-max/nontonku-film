@@ -7,13 +7,17 @@
 <meta name="theme-color" content="#111">
 <meta name="description" content="Temukan film pilihan dan film terbaru di NontonKu.">
 <title>NontonKu — Dunia Film Pilihanmu</title>
+
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-HMFN2JN7DQ"></script>
 <script>
 window.dataLayer=window.dataLayer||[];
 function gtag(){dataLayer.push(arguments);}
-gtag('js',new Date());gtag('config','G-HMFN2JN7DQ');
+gtag('js',new Date());
+gtag('config','G-HMFN2JN7DQ');
 </script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#111;color:#fff;font-family:Arial,system-ui,sans-serif}
@@ -50,11 +54,7 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
  z-index:-1;
  background:linear-gradient(0deg,#111 0%,rgba(17,17,17,.82) 20%,rgba(17,17,17,.25) 65%,rgba(17,17,17,.2) 100%);
 }
-.hero-content{
- width:100%;
- max-width:720px;
- padding-top:50px;
-}
+.hero-content{width:100%;max-width:720px;padding-top:50px}
 .hero-label{
  display:inline-block;
  color:#fff;
@@ -66,21 +66,8 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
  border-radius:4px;
  margin-bottom:13px;
 }
-.hero h1{
- font-size:clamp(28px,5vw,48px);
- line-height:1.12;
- margin:0 0 12px;
- text-shadow:0 2px 12px #000;
- overflow-wrap:anywhere;
-}
-.hero p{
- color:#eee;
- font-size:15px;
- line-height:1.6;
- margin:0 0 20px;
- max-width:540px;
- text-shadow:0 1px 8px #000;
-}
+.hero h1{font-size:clamp(28px,5vw,48px);line-height:1.12;margin:0 0 12px;text-shadow:0 2px 12px #000;overflow-wrap:anywhere}
+.hero p{color:#eee;font-size:15px;line-height:1.6;margin:0 0 20px;max-width:540px;text-shadow:0 1px 8px #000}
 .hero-button{
  display:inline-flex;
  align-items:center;
@@ -109,8 +96,25 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
 .title{font-weight:700;font-size:14px;margin-top:7px}
 .meta{font-size:12px;color:#aaa;margin-top:4px}
 .notice{margin:20px 4%;padding:14px;background:#252525;border-radius:8px;line-height:1.5}
-.ad-area{text-align:center;min-height:50px;margin:12px auto;overflow:hidden}
+
+/* WADAH IKLAN SPANDUK */
+.ad-area{text-align:center;min-height:50px;margin:14px auto;overflow:hidden}
 .ad-label{font-size:10px;letter-spacing:2px;color:#888;margin:8px}
+.banner-ad-slot{
+ width:320px;
+ max-width:100%;
+ min-height:50px;
+ margin:0 auto;
+ display:flex;
+ justify-content:center;
+ align-items:flex-start;
+ overflow:hidden;
+}
+.banner-ad-slot iframe{max-width:100%;border:0}
+
+/* IKLAN BAWAH */
+.bottom-ad-area{margin:24px auto 30px;padding:0 8px}
+.bottom-ad-area .ad-label{margin-bottom:10px}
 
 .modal{display:none;position:fixed;inset:0;background:#000e;z-index:9;overflow:auto;padding:16px;align-items:center;justify-content:center}
 .modal.open{display:flex}
@@ -127,6 +131,7 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
 .download{background:#ee4d2d}
 .share{background:#2878d0}
 .direct{display:inline-block;margin-top:12px}
+
 @media(max-width:600px){
  .hero{height:390px;min-height:350px;padding-bottom:26px}
  .hero-poster{object-position:center 25%}
@@ -145,6 +150,7 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
 }
 </style>
 </head>
+
 <body>
 
 <header>
@@ -167,24 +173,65 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
 </div>
 </section>
 
-<!-- IKLAN: DIPERTAHANKAN -->
-<div id="ad-area" class="ad-area"><div class="ad-label">IKLAN</div>
-<script>(function(s){s.dataset.zone='12059155';s.src='https://n6wxm.com/vignette.min.js'})(document.documentElement.appendChild(document.createElement('script')));</script>
-<div style="min-height:50px">
-<script>var atOptions={'key':'4d14e0ed047da413a96ed9b0f0a45c55','format':'iframe','height':50,'width':320,'params':{}};</script>
-<script async src="https://www.highrevenueformat.com/4d14e0ed047da413a96ed9b0f0a45c55/invoke.js"></script>
-</div></div>
+<!-- IKLAN VIGNETTE ASLI: DIPERTAHANKAN -->
+<script>
+(function(s){
+ s.dataset.zone='12059155';
+ s.src='https://n6wxm.com/vignette.min.js';
+})(document.documentElement.appendChild(document.createElement('script')));
+</script>
+
+<!-- IKLAN SPANDUK PERTAMA: POSISI TENGAH/ATAS DAFTAR FILM -->
+<div id="middle-banner-ad" class="ad-area">
+ <div class="ad-label">IKLAN</div>
+ <div class="banner-ad-slot">
+  <script>
+   var atOptions={
+    'key':'4d14e0ed047da413a96ed9b0f0a45c55',
+    'format':'iframe',
+    'height':50,
+    'width':320,
+    'params':{}
+   };
+  </script>
+  <script src="https://www.highrevenueformat.com/4d14e0ed047da413a96ed9b0f0a45c55/invoke.js"></script>
+ </div>
+</div>
 
 <main id="list">
 <div class="notice" id="status">Menghubungkan ke Supabase...</div>
 </main>
 
+<!-- IKLAN SPANDUK KEDUA: SETELAH DAFTAR FILM -->
+<div id="bottom-banner-ad" class="ad-area bottom-ad-area">
+ <div class="ad-label">IKLAN</div>
+ <div class="banner-ad-slot">
+  <script>
+   var atOptions={
+    'key':'4d14e0ed047da413a96ed9b0f0a45c55',
+    'format':'iframe',
+    'height':50,
+    'width':320,
+    'params':{}
+   };
+  </script>
+  <script src="https://www.highrevenueformat.com/4d14e0ed047da413a96ed9b0f0a45c55/invoke.js"></script>
+ </div>
+</div>
+
+<!-- MODAL PEMUTAR VIDEO -->
 <div class="modal" id="modal">
 <div class="box">
-<div class="bar"><h2 id="filmTitle">Putar film</h2><button id="close">Tutup ✕</button></div>
+<div class="bar">
+<h2 id="filmTitle">Putar film</h2>
+<button id="close">Tutup ✕</button>
+</div>
 
-<!-- IKLAN PEMUTAR: DIPERTAHANKAN -->
-<div class="ad-area"><div class="ad-label">IKLAN</div><div id="container-ad51b057c7485f3c6a1992e15c154301"></div></div>
+<!-- IKLAN PEMUTAR ASLI: DIPERTAHANKAN -->
+<div class="ad-area">
+ <div class="ad-label">IKLAN</div>
+ <div id="container-ad51b057c7485f3c6a1992e15c154301"></div>
+</div>
 
 <div class="player" id="player"></div>
 <div class="details">
@@ -198,11 +245,12 @@ input{margin-left:auto;width:min(55%,320px);padding:11px;border:1px solid #555;b
 </div>
 </div>
 
-<!-- SCRIPT IKLAN: DIPERTAHANKAN -->
+<!-- SCRIPT IKLAN ASLI: DIPERTAHANKAN -->
 <script async src="https://pl31787885.profitableratecpmnetwork.com/55/d9/52/55d95203e281a108df48029df99e85e6.js"></script>
 
 <script>
 (()=>{'use strict';
+
 const $=id=>document.getElementById(id);
 let films=[];
 
@@ -210,7 +258,13 @@ const SUPABASE_URL='https://vsuwjokcqiruhbmmtabb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_9rZvzp0sYjKsAFDsNCb75g_7DXYvuQ5';
 const fallbackPoster='https://placehold.co/600x900/0b1628/9fbce9?text=NontonKu';
 
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({
+ '&':'&amp;',
+ '<':'&lt;',
+ '>':'&gt;',
+ '"':'&quot;',
+ "'":'&#39;'
+}[c]));
 
 function safeUrl(s){
  try{
@@ -229,7 +283,7 @@ function normalizeFilm(f){
  };
 }
 
-/* Mengatur banner berdasarkan film terbaru dari Supabase */
+/* BANNER OTOMATIS DARI FILM TERBARU */
 function updateHero(){
  const latest=films[0];
  const poster=$('heroPoster');
@@ -246,20 +300,19 @@ function updateHero(){
 
  $('heroTitle').textContent=latest.title||'Film Terbaru';
 
- const info=[
-  latest.year,
-  latest.genre
- ].filter(Boolean).join(' • ');
+ const info=[latest.year,latest.genre].filter(Boolean).join(' • ');
 
  $('heroText').textContent=info
   ?'Tonton '+latest.title+' — '+info+'. Nikmati film pilihanmu di NontonKu.'
   :'Nikmati film terbaru '+latest.title+' di NontonKu.';
 
  const posterUrl=safeUrl(latest.poster_url);
+
  poster.onerror=()=>{
   poster.onerror=null;
   poster.src=fallbackPoster;
  };
+
  poster.src=posterUrl||fallbackPoster;
  poster.alt='Poster '+(latest.title||'film terbaru');
 
@@ -269,11 +322,12 @@ function updateHero(){
 
 function render(){
  const q=$('search').value.trim().toLowerCase();
+
  const filtered=films.filter(f=>
   [f.title,f.genre,f.year].join(' ').toLowerCase().includes(q)
  );
- const groups={};
 
+ const groups={};
  filtered.forEach(f=>(groups[f.genre||'Film lainnya']??=[]).push(f));
 
  const root=$('list');
@@ -336,6 +390,7 @@ function play(id){
  if(!f)return;
 
  const u=safeUrl(f.video_url);
+
  $('filmTitle').textContent=f.title||'Film';
  $('filmMeta').textContent=[f.year,f.genre].filter(Boolean).join(' • ');
  $('player').innerHTML='';
@@ -398,7 +453,6 @@ async function init(){
    SUPABASE_PUBLISHABLE_KEY
   );
 
-  // Query database lama tetap dipertahankan.
   const {data,error}=await db
    .from('films')
    .select('*')
@@ -412,7 +466,6 @@ async function init(){
    .filter(f=>f.title);
 
   updateHero();
-
   $('status')?.remove();
   render();
 
@@ -432,5 +485,6 @@ async function init(){
 init();
 })();
 </script>
+
 </body>
 </html>
